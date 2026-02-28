@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=TC Radio
+Exec=bash -c "sleep 10 && export DISPLAY=:0 && python3 /home/raspberry/touch_radio.py"
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
