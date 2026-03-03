@@ -2993,6 +2993,7 @@ threading.Thread(target=run_flask, daemon=True).start()
 # --- PYGAME SETUP ---
 os.environ['DISPLAY'] = ':0'
 pygame.init()
+clock = pygame.time.Clock()
 
 # --- UNICODE FONT SETUP (Tamil Support) ---
 def get_unicode_font(size, bold=False):
@@ -3176,6 +3177,27 @@ play()
 ip_display_time = time.time() + 10
 show_startup_ip = True
 
+# --- LIGHTWEIGHT PERFORMANCE TUNING (RPI) ---
+TARGET_FPS = 15
+ALARM_CHECK_INTERVAL = 1.0
+SLEEP_CHECK_INTERVAL = 1.0
+META_UPDATE_INTERVAL = 1.0
+PLAYER_STATE_UPDATE_INTERVAL = 0.5
+
+text_surface_cache = {}
+MAX_TEXT_CACHE_SIZE = 512
+
+def render_cached(font, text, color):
+    key = (id(font), str(text), tuple(color))
+    surface = text_surface_cache.get(key)
+    if surface is not None:
+        return surface
+    surface = font.render(str(text), True, color)
+    if len(text_surface_cache) >= MAX_TEXT_CACHE_SIZE:
+        text_surface_cache.clear()
+    text_surface_cache[key] = surface
+    return surface
+
 def handle_alarm_fade():
     global vol_level, alarm_fade_active, alarm_fade_data, current_idx
     if not alarm_fade_active or not alarm_fade_data:
@@ -3233,14 +3255,14 @@ def draw_screensaver():
     # Dim the time display (not too bright)
     time_now = datetime.now().strftime("%H:%M")
     # Use darker gray for time (not pure white)
-    time_surf = f_xl.render(time_now, True, (100, 100, 100))
+    time_surf = render_cached(f_xl, time_now, (100, 100, 100))
     time_rect = time_surf.get_rect(center=(160, 150))
     screen.blit(time_surf, time_rect)
     
     # Scrolling station name - dim cyan
     station_name = f"RADIO: {sanitize_text(stations[current_idx]['name']).upper()}"
     # Darker cyan for less brightness
-    station_surf = f_med.render(station_name, True, (0, 100, 100))
+    station_surf = render_cached(f_med, station_name, (0, 100, 100))
     
     saver_scroll_x -= 1  # Slower scroll
     if saver_scroll_x < -station_surf.get_width():
@@ -3252,27 +3274,27 @@ def draw_screensaver():
         remaining = alarm_system.get_sleep_remaining()
         # Dark green/red
         sleep_color = (0, 80, 0) if remaining > 10 else (80, 0, 0)
-        sleep_text = f_tiny.render(f"Sleep: {remaining} min", True, sleep_color)
+        sleep_text = render_cached(f_tiny, f"Sleep: {remaining} min", sleep_color)
         screen.blit(sleep_text, (160 - sleep_text.get_width()//2, y_pos))
         y_pos += 25
     
     if alarm_system.alarm_enabled:
         # Dark gold
-        alarm_text = f_tiny.render(f"ALARM {alarm_system.alarm_time}", True, (100, 80, 0))
+        alarm_text = render_cached(f_tiny, f"ALARM {alarm_system.alarm_time}", (100, 80, 0))
         screen.blit(alarm_text, (160 - alarm_text.get_width()//2, y_pos))
         y_pos += 20
     
     # Weather - dim
     draw_weather_icon(screen, 160, y_pos + 10, weather_type)
-    temp_surf = f_sm.render(f"{current_temp}°C", True, (80, 80, 80))
+    temp_surf = render_cached(f_sm, f"{current_temp}°C", (80, 80, 80))
     screen.blit(temp_surf, (160 - temp_surf.get_width()//2, y_pos + 30))
     
     # Volume - very dim
-    vol_surf = f_sm.render(f"Vol: {vol_level}%", True, (60, 60, 60))
+    vol_surf = render_cached(f_sm, f"Vol: {vol_level}%", (60, 60, 60))
     screen.blit(vol_surf, (160 - vol_surf.get_width()//2, 420))
     
     # Exit hint - very dim
-    hint_surf = f_tiny.render("Tap to exit", True, (40, 40, 40))
+    hint_surf = render_cached(f_tiny, "Tap to exit", (40, 40, 40))
     screen.blit(hint_surf, (160 - hint_surf.get_width()//2, 460))
 
 adjusting_volume = False
@@ -3280,17 +3302,27 @@ show_volume_bar = False
 volume_bar_timer = 0
 touch_start_pos = (0,0)
 touch_start_time = 0
+last_alarm_check = 0
+last_sleep_check = 0
+last_meta_check = 0
+last_player_state_check = 0
+is_playing = False
+mouse_visible = True
 
 while True:
     now = time.time()
     update_qr_code()
     
-    if alarm_system.check_alarm() and not alarm_fade_active:
-        alarm_fade_data = alarm_system.trigger_alarm(player, stations, current_idx, vol_level)
-        alarm_fade_active = True
+    if now - last_alarm_check >= ALARM_CHECK_INTERVAL:
+        if alarm_system.check_alarm() and not alarm_fade_active:
+            alarm_fade_data = alarm_system.trigger_alarm(player, stations, current_idx, vol_level)
+            alarm_fade_active = True
+        last_alarm_check = now
     
     handle_alarm_fade()
-    handle_sleep_timer()
+    if now - last_sleep_check >= SLEEP_CHECK_INTERVAL:
+        handle_sleep_timer()
+        last_sleep_check = now
     
     if now - last_weather_update > 1200:
         try:
@@ -3305,51 +3337,61 @@ while True:
         except: pass
         last_weather_update = now
     
-    try:
-        media = player.get_media()
-        if media:
-            try:
-                m = media.get_meta(vlc.Meta.NowPlaying)
-                if m:
-                    meta_text = sanitize_text(m).upper()
-                else:
+    if now - last_meta_check >= META_UPDATE_INTERVAL:
+        try:
+            media = player.get_media()
+            if media:
+                try:
+                    m = media.get_meta(vlc.Meta.NowPlaying)
+                    if m:
+                        meta_text = sanitize_text(m).upper()
+                    else:
+                        meta_text = sanitize_text(stations[current_idx]['name']).upper()
+                except:
                     meta_text = sanitize_text(stations[current_idx]['name']).upper()
-            except: 
-                meta_text = sanitize_text(stations[current_idx]['name']).upper()
-    except: 
-        meta_text = sanitize_text(stations[current_idx]['name']).upper()
+        except:
+            meta_text = sanitize_text(stations[current_idx]['name']).upper()
+        last_meta_check = now
     
     if show_volume_bar and now - volume_bar_timer > 3:
         show_volume_bar = False
         adjusting_volume = False
+
+    if now - last_player_state_check >= PLAYER_STATE_UPDATE_INTERVAL:
+        try:
+            is_playing = player.get_state() == vlc.State.Playing
+        except:
+            is_playing = False
+        last_player_state_check = now
     
     if saver_active:
-        pygame.mouse.set_visible(False)
+        if mouse_visible:
+            pygame.mouse.set_visible(False)
+            mouse_visible = False
         draw_screensaver()
     else:
-        pygame.mouse.set_visible(True)
+        if not mouse_visible:
+            pygame.mouse.set_visible(True)
+            mouse_visible = True
         screen.fill(BLACK)
         pygame.draw.rect(screen, CYAN, (0, 0, 320, 60))
-        screen.blit(f_lg.render("TC RADIO", True, BLACK), (100, 15))
+        screen.blit(render_cached(f_lg, "TC RADIO", BLACK), (100, 15))
         
         if show_startup_ip and now < ip_display_time:
-            screen.blit(f_sm.render(f"IP: {current_ip}:8080", True, GOLD), (180, 20))
+            screen.blit(render_cached(f_sm, f"IP: {current_ip}:8080", GOLD), (180, 20))
         
         btn_qr = pygame.draw.rect(screen, (30,30,30), (10,10,45,40), border_radius=5)
-        screen.blit(f_sm.render("QR", True, CYAN), (22,22))
+        screen.blit(render_cached(f_sm, "QR", CYAN), (22,22))
         
         btn_exit = pygame.draw.rect(screen, RED, (275,10,40,40), border_radius=8)
         pygame.draw.line(screen, WHITE, (285,20), (305,40), 4)
         pygame.draw.line(screen, WHITE, (305,20), (285,40), 4)
         
-        try: is_playing = player.get_state() == vlc.State.Playing
-        except: is_playing = False
-        
         logo_rect = pygame.Rect(90, 95, 140, 140)
         screen.blit(logo, (90, 95))
         
         if is_playing:
-            pulse = (math.sin(time.time() * 3) + 1) / 2
+            pulse = (math.sin(now * 3) + 1) / 2
             pulse_color = (int(CYAN[0] * 0.7), int(CYAN[1] * 0.7), int(CYAN[2] * 0.7))
             pygame.draw.circle(screen, pulse_color, (160, 165), 75 + int(pulse * 5), 2)
         else:
@@ -3357,51 +3399,51 @@ while True:
         
         # Display text with Unicode support (Tamil will show correctly)
         display_text = sanitize_text(meta_text)
-        name_render = f_lg.render(display_text, True, CYAN)
+        name_render = render_cached(f_lg, display_text, CYAN)
         scroll_x -= 2
         if scroll_x < -name_render.get_width():
             scroll_x = 320
         screen.blit(name_render, (scroll_x, 255))
         
         if alarm_system.alarm_enabled:
-            screen.blit(f_tiny.render(f"ALARM {alarm_system.alarm_time}", True, GOLD), (10,300))
+            screen.blit(render_cached(f_tiny, f"ALARM {alarm_system.alarm_time}", GOLD), (10,300))
         if alarm_system.sleep_timer_enabled:
             rem = alarm_system.get_sleep_remaining()
-            sleep_text = f_tiny.render(f"SLEEP {rem}min", True, GREEN if rem > 5 else RED)
+            sleep_text = render_cached(f_tiny, f"SLEEP {rem}min", GREEN if rem > 5 else RED)
             screen.blit(sleep_text, (250 - sleep_text.get_width(), 300))
         
         # English UI buttons (NOT translated to Tamil)
         btn_prev = pygame.draw.rect(screen, (30,30,30), (10,340,95,55), border_radius=15)
         pygame.draw.rect(screen, CYAN, (10,340,95,55), 2, border_radius=15)
-        screen.blit(f_sm.render("PREV", True, WHITE), (35,357))
+        screen.blit(render_cached(f_sm, "PREV", WHITE), (35,357))
         
         btn_toggle = pygame.draw.rect(screen, (30,30,30), (112,340,95,55), border_radius=15)
         pygame.draw.rect(screen, GOLD, (112,340,95,55), 2, border_radius=15)
-        screen.blit(f_sm.render("PAUSE" if is_playing else "PLAY", True, GOLD), (135,357))
+        screen.blit(render_cached(f_sm, "PAUSE" if is_playing else "PLAY", GOLD), (135,357))
         
         btn_next = pygame.draw.rect(screen, (30,30,30), (215,340,95,55), border_radius=15)
         pygame.draw.rect(screen, PURPLE, (215,340,95,55), 2, border_radius=15)
-        screen.blit(f_sm.render("NEXT", True, WHITE), (240,357))
+        screen.blit(render_cached(f_sm, "NEXT", WHITE), (240,357))
         
         pygame.draw.rect(screen, (20,20,20), (0,430,320,50))
         btn_sleep = pygame.draw.rect(screen, PURPLE, (5, 435, 70, 40), border_radius=5)
-        screen.blit(f_sm.render("SLEEP", True, WHITE), (13, 445))
+        screen.blit(render_cached(f_sm, "SLEEP", WHITE), (13, 445))
         btn_saver = pygame.draw.rect(screen, (50,50,50), (80, 435, 70, 40), border_radius=5)
-        screen.blit(f_sm.render("MOON", True, WHITE), (95, 445))
+        screen.blit(render_cached(f_sm, "MOON", WHITE), (95, 445))
         btn_alarm = pygame.draw.rect(screen, GOLD if alarm_system.alarm_enabled else GRAY, (155, 435, 70, 40), border_radius=5)
-        screen.blit(f_sm.render("ALARM", True, BLACK if alarm_system.alarm_enabled else WHITE), (163, 445))
+        screen.blit(render_cached(f_sm, "ALARM", BLACK if alarm_system.alarm_enabled else WHITE), (163, 445))
         
         vol_rect = pygame.Rect(230, 435, 40, 40)
-        screen.blit(f_sm.render(f"{vol_level}%", True, WHITE), (230, 445))
+        screen.blit(render_cached(f_sm, f"{vol_level}%", WHITE), (230, 445))
         btn_mute = pygame.draw.rect(screen, (30,30,30), (275, 435, 40, 40), border_radius=5)
-        screen.blit(f_sm.render("M", True, CYAN if vol_level > 0 else RED), (288, 445))
+        screen.blit(render_cached(f_sm, "M", CYAN if vol_level > 0 else RED), (288, 445))
         
         if show_volume_bar:
             pygame.draw.rect(screen, (40,40,40), (40, 350, 240, 40), border_radius=20)
             fill_width = int(240 * vol_level / 100)
             pygame.draw.rect(screen, CYAN, (40, 350, fill_width, 40), border_radius=20)
             pygame.draw.rect(screen, WHITE, (40, 350, 240, 40), 3, border_radius=20)
-            v_txt = f_xl.render(f"{vol_level}%", True, WHITE)
+            v_txt = render_cached(f_xl, f"{vol_level}%", WHITE)
             screen.blit(v_txt, (160 - v_txt.get_width()//2, 355))
         
         if show_qr:
@@ -3481,4 +3523,4 @@ while True:
                 volume_bar_timer = time.time()
     
     pygame.display.flip()
-    time.sleep(0.05)
+    clock.tick(TARGET_FPS)
