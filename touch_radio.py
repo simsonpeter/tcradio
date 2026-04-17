@@ -629,8 +629,6 @@ HTML_TEMPLATE = """
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3011/3011244.png">
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700&display=swap');
-
         :root {
             --bg: {{ theme.background }};
             --primary: {{ theme.primary }};
@@ -651,7 +649,7 @@ HTML_TEMPLATE = """
             padding: 0;
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
-            font-family: 'Noto Sans Tamil', 'Nirmala UI', 'Latha', 'Vijaya', 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
         
         html, body {
@@ -1597,6 +1595,7 @@ HTML_TEMPLATE = """
         .youtube-title {
             font-weight: 600;
             font-size: 14px;
+            font-family: 'Noto Sans Tamil', 'Nirmala UI', 'Latha', 'Vijaya', 'Noto Sans', 'Segoe UI', Arial, sans-serif;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -1606,6 +1605,7 @@ HTML_TEMPLATE = """
         .youtube-meta {
             font-size: 12px;
             color: rgba(255,255,255,0.5);
+            font-family: 'Noto Sans Tamil', 'Nirmala UI', 'Latha', 'Vijaya', 'Noto Sans', 'Segoe UI', Arial, sans-serif;
         }
         
         .search-container {
@@ -3000,13 +3000,13 @@ pygame.init()
 def get_unicode_font(size, bold=False):
     """Load font with Unicode/Tamil support"""
     font_paths = [
+        '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
+        '/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf',
         '/usr/share/fonts/truetype/noto/NotoSansTamil-Regular.ttf',
+        '/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc',
+        '/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf',
         '/usr/share/fonts/truetype/noto/NotoSansTamil-Bold.ttf',
         '/usr/share/fonts/truetype/lohit-tamil/Lohit-Tamil.ttf',
-        '/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf',
-        '/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf',
-        '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
-        '/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc',
         '/usr/share/fonts/truetype/freefont/FreeSans.ttf',
         '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf',
         '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
@@ -3373,6 +3373,27 @@ while True:
             rem = alarm_system.get_sleep_remaining()
             sleep_text = f_tiny.render(f"SLEEP {rem}min", True, GREEN if rem > 5 else RED)
             screen.blit(sleep_text, (250 - sleep_text.get_width(), 300))
+
+        # Large, always-visible volume controls for easier touchscreen use
+        vol_minus_rect = pygame.draw.rect(screen, (35, 35, 35), (10, 306, 40, 30), border_radius=8)
+        pygame.draw.rect(screen, CYAN, (10, 306, 40, 30), 2, border_radius=8)
+        screen.blit(f_sm.render("-", True, WHITE), (25, 311))
+
+        vol_plus_rect = pygame.draw.rect(screen, (35, 35, 35), (270, 306, 40, 30), border_radius=8)
+        pygame.draw.rect(screen, CYAN, (270, 306, 40, 30), 2, border_radius=8)
+        screen.blit(f_sm.render("+", True, WHITE), (284, 311))
+
+        vol_bar_rect = pygame.Rect(58, 309, 204, 24)
+        pygame.draw.rect(screen, (40, 40, 40), vol_bar_rect, border_radius=12)
+        fill_width = int(vol_bar_rect.width * vol_level / 100)
+        if fill_width > 0:
+            pygame.draw.rect(screen, CYAN, (vol_bar_rect.x, vol_bar_rect.y, fill_width, vol_bar_rect.height), border_radius=12)
+        pygame.draw.rect(screen, WHITE, vol_bar_rect, 2, border_radius=12)
+
+        knob_x = vol_bar_rect.x + int(vol_bar_rect.width * vol_level / 100)
+        knob_x = max(vol_bar_rect.x + 8, min(vol_bar_rect.right - 8, knob_x))
+        pygame.draw.circle(screen, WHITE, (knob_x, vol_bar_rect.centery), 8)
+        screen.blit(f_tiny.render(f"VOL {vol_level}%", True, WHITE), (133, 338))
         
         # English UI buttons (NOT translated to Tamil)
         btn_prev = pygame.draw.rect(screen, (30,30,30), (10,340,95,55), border_radius=15)
@@ -3450,6 +3471,26 @@ while True:
             if btn_alarm.collidepoint(event.pos):
                 alarm_system.alarm_enabled = not alarm_system.alarm_enabled
                 alarm_system.save_alarm_settings()
+            if vol_minus_rect.collidepoint(event.pos):
+                vol_level = max(0, vol_level - 5)
+                player.audio_set_volume(vol_level)
+                audio_manager.set_volume(vol_level)
+                show_volume_bar = True
+                volume_bar_timer = time.time()
+            if vol_plus_rect.collidepoint(event.pos):
+                vol_level = min(100, vol_level + 5)
+                player.audio_set_volume(vol_level)
+                audio_manager.set_volume(vol_level)
+                show_volume_bar = True
+                volume_bar_timer = time.time()
+            if vol_bar_rect.collidepoint(event.pos):
+                adjusting_volume = True
+                vol_level = int((event.pos[0] - vol_bar_rect.x) * 100 / vol_bar_rect.width)
+                vol_level = max(0, min(100, vol_level))
+                player.audio_set_volume(vol_level)
+                audio_manager.set_volume(vol_level)
+                show_volume_bar = True
+                volume_bar_timer = time.time()
             if vol_rect.collidepoint(event.pos):
                 show_volume_bar = True
                 adjusting_volume = True
@@ -3476,10 +3517,9 @@ while True:
             adjusting_volume = False
         
         elif event.type == pygame.MOUSEMOTION and adjusting_volume:
-            bar_x = 40
-            bar_width = 240
-            if event.pos[0] >= bar_x and event.pos[0] <= bar_x + bar_width:
-                vol_level = int((event.pos[0] - bar_x) * 100 / bar_width)
+            if event.pos[0] >= vol_bar_rect.x and event.pos[0] <= vol_bar_rect.right:
+                vol_level = int((event.pos[0] - vol_bar_rect.x) * 100 / vol_bar_rect.width)
+                vol_level = max(0, min(100, vol_level))
                 player.audio_set_volume(vol_level)
                 audio_manager.set_volume(vol_level)
                 volume_bar_timer = time.time()
