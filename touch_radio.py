@@ -3372,8 +3372,12 @@ while True:
             sleep_text = f_tiny.render(f"SLEEP {rem}min", True, GREEN if rem > 5 else RED)
             screen.blit(sleep_text, (310 - sleep_text.get_width(), alarm_sleep_y))
 
+        # Hit targets under alarm row; middle stays visually empty until slider shows briefly
+        vol_minus_rect = pygame.Rect(10, 296, 44, 34)
+        vol_plus_rect = pygame.Rect(266, 296, 44, 34)
+        vol_bar_rect = pygame.Rect(58, 300, 204, 26)
+
         # Slider + label only while adjusting or shortly after (+/- tap, bottom %, logo swipe)
-        vol_bar_rect = pygame.Rect(58, 302, 204, 26)
         if show_volume_bar or adjusting_volume:
             pygame.draw.rect(screen, (40, 40, 40), vol_bar_rect, border_radius=12)
             fill_width = int(vol_bar_rect.width * vol_level / 100)
@@ -3385,7 +3389,19 @@ while True:
             knob_x = max(vol_bar_rect.x + 8, min(vol_bar_rect.right - 8, knob_x))
             pygame.draw.circle(screen, WHITE, (knob_x, vol_bar_rect.centery), 8)
             vol_pct_surf = f_tiny.render(f"VOL {vol_level}%", True, WHITE)
-            screen.blit(vol_pct_surf, (160 - vol_pct_surf.get_width() // 2, 334))
+            screen.blit(vol_pct_surf, (160 - vol_pct_surf.get_width() // 2, 330))
+
+        # Draw + / − on top so they stay visible when the bar is shown
+        pygame.draw.rect(screen, GOLD, vol_minus_rect, border_radius=8)
+        pygame.draw.rect(screen, BLACK, vol_minus_rect, 2, border_radius=8)
+        mc = vol_minus_rect.center
+        pygame.draw.line(screen, BLACK, (mc[0] - 10, mc[1]), (mc[0] + 10, mc[1]), 4)
+
+        pygame.draw.rect(screen, GOLD, vol_plus_rect, border_radius=8)
+        pygame.draw.rect(screen, BLACK, vol_plus_rect, 2, border_radius=8)
+        pc = vol_plus_rect.center
+        pygame.draw.line(screen, BLACK, (pc[0], pc[1] - 10), (pc[0], pc[1] + 10), 4)
+        pygame.draw.line(screen, BLACK, (pc[0] - 10, pc[1]), (pc[0] + 10, pc[1]), 4)
         
         # English UI buttons (NOT translated to Tamil) — y lowered so volume strip + label clear
         btn_prev = pygame.draw.rect(screen, (30,30,30), (10,352,95,55), border_radius=15)
@@ -3401,41 +3417,17 @@ while True:
         screen.blit(f_sm.render("NEXT", True, WHITE), (240,369))
         
         pygame.draw.rect(screen, (20,20,20), (0,430,320,50))
-        # Bottom row: slightly narrower station buttons so − / + / % / M fit and stay easy to see
-        btn_sleep = pygame.draw.rect(screen, PURPLE, (4, 432, 48, 44), border_radius=6)
-        t_sleep = f_tiny.render("SLEEP", True, WHITE)
-        screen.blit(t_sleep, t_sleep.get_rect(center=btn_sleep.center))
-        btn_saver = pygame.draw.rect(screen, (50, 50, 50), (54, 432, 48, 44), border_radius=6)
-        t_moon = f_tiny.render("MOON", True, WHITE)
-        screen.blit(t_moon, t_moon.get_rect(center=btn_saver.center))
-        btn_alarm = pygame.draw.rect(screen, GOLD if alarm_system.alarm_enabled else GRAY, (104, 432, 48, 44), border_radius=6)
-        t_alarm = f_tiny.render("ALARM", True, BLACK if alarm_system.alarm_enabled else WHITE)
-        screen.blit(t_alarm, t_alarm.get_rect(center=btn_alarm.center))
+        btn_sleep = pygame.draw.rect(screen, PURPLE, (5, 435, 70, 40), border_radius=5)
+        screen.blit(f_sm.render("SLEEP", True, WHITE), (13, 445))
+        btn_saver = pygame.draw.rect(screen, (50,50,50), (80, 435, 70, 40), border_radius=5)
+        screen.blit(f_sm.render("MOON", True, WHITE), (95, 445))
+        btn_alarm = pygame.draw.rect(screen, GOLD if alarm_system.alarm_enabled else GRAY, (155, 435, 70, 40), border_radius=5)
+        screen.blit(f_sm.render("ALARM", True, BLACK if alarm_system.alarm_enabled else WHITE), (163, 445))
 
-        # Volume − / + : gold tiles + drawn glyphs (works even if font dash/plus are tiny)
-        vol_minus_rect = pygame.Rect(156, 432, 36, 44)
-        pygame.draw.rect(screen, GOLD, vol_minus_rect, border_radius=8)
-        pygame.draw.rect(screen, BLACK, vol_minus_rect, 2, border_radius=8)
-        mc = vol_minus_rect.center
-        pygame.draw.line(screen, BLACK, (mc[0] - 10, mc[1]), (mc[0] + 10, mc[1]), 4)
-
-        vol_rect = pygame.Rect(194, 432, 56, 44)
-        pygame.draw.rect(screen, (45, 45, 45), vol_rect, border_radius=8)
-        pygame.draw.rect(screen, CYAN, vol_rect, 2, border_radius=8)
-        t_vol = f_sm.render(f"{vol_level}%", True, WHITE)
-        screen.blit(t_vol, t_vol.get_rect(center=vol_rect.center))
-
-        vol_plus_rect = pygame.Rect(252, 432, 36, 44)
-        pygame.draw.rect(screen, GOLD, vol_plus_rect, border_radius=8)
-        pygame.draw.rect(screen, BLACK, vol_plus_rect, 2, border_radius=8)
-        pc = vol_plus_rect.center
-        pygame.draw.line(screen, BLACK, (pc[0], pc[1] - 10), (pc[0], pc[1] + 10), 4)
-        pygame.draw.line(screen, BLACK, (pc[0] - 10, pc[1]), (pc[0] + 10, pc[1]), 4)
-
-        btn_mute = pygame.draw.rect(screen, (30, 30, 30), (290, 432, 28, 44), border_radius=6)
-        pygame.draw.rect(screen, CYAN if vol_level > 0 else RED, btn_mute, 2, border_radius=6)
-        t_mute = f_tiny.render("M", True, CYAN if vol_level > 0 else RED)
-        screen.blit(t_mute, t_mute.get_rect(center=btn_mute.center))
+        vol_rect = pygame.Rect(230, 435, 40, 40)
+        screen.blit(f_sm.render(f"{vol_level}%", True, WHITE), (230, 445))
+        btn_mute = pygame.draw.rect(screen, (30,30,30), (275, 435, 40, 40), border_radius=5)
+        screen.blit(f_sm.render("M", True, CYAN if vol_level > 0 else RED), (288, 445))
         
         if show_qr:
             pygame.draw.rect(screen, BLACK, (35,95,250,250), border_radius=10)
