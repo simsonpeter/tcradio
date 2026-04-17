@@ -1595,7 +1595,6 @@ HTML_TEMPLATE = """
         .youtube-title {
             font-weight: 600;
             font-size: 14px;
-            font-family: 'Noto Sans Tamil', 'Nirmala UI', 'Latha', 'Vijaya', 'Noto Sans', 'Segoe UI', Arial, sans-serif;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -1605,7 +1604,6 @@ HTML_TEMPLATE = """
         .youtube-meta {
             font-size: 12px;
             color: rgba(255,255,255,0.5);
-            font-family: 'Noto Sans Tamil', 'Nirmala UI', 'Latha', 'Vijaya', 'Noto Sans', 'Segoe UI', Arial, sans-serif;
         }
         
         .search-container {
@@ -3006,12 +3004,10 @@ def get_unicode_font(size, bold=False):
         '/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc',
         '/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf',
         '/usr/share/fonts/truetype/noto/NotoSansTamil-Bold.ttf',
-        '/usr/share/fonts/truetype/lohit-tamil/Lohit-Tamil.ttf',
         '/usr/share/fonts/truetype/freefont/FreeSans.ttf',
         '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf',
         '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
         '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
-        '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
     ]
     
     if bold:
@@ -3365,25 +3361,27 @@ while True:
         scroll_x -= 2
         if scroll_x < -name_render.get_width():
             scroll_x = 320
-        screen.blit(name_render, (scroll_x, 255))
+        screen.blit(name_render, (scroll_x, 248))
         
+        # Alarm / sleep row — below now-playing scroll, above volume strip
+        alarm_sleep_y = 278
         if alarm_system.alarm_enabled:
-            screen.blit(f_tiny.render(f"ALARM {alarm_system.alarm_time}", True, GOLD), (10,300))
+            screen.blit(f_tiny.render(f"ALARM {alarm_system.alarm_time}", True, GOLD), (10, alarm_sleep_y))
         if alarm_system.sleep_timer_enabled:
             rem = alarm_system.get_sleep_remaining()
             sleep_text = f_tiny.render(f"SLEEP {rem}min", True, GREEN if rem > 5 else RED)
-            screen.blit(sleep_text, (250 - sleep_text.get_width(), 300))
+            screen.blit(sleep_text, (310 - sleep_text.get_width(), alarm_sleep_y))
 
-        # Large, always-visible volume controls for easier touchscreen use
-        vol_minus_rect = pygame.draw.rect(screen, (35, 35, 35), (10, 306, 40, 30), border_radius=8)
-        pygame.draw.rect(screen, CYAN, (10, 306, 40, 30), 2, border_radius=8)
-        screen.blit(f_sm.render("-", True, WHITE), (25, 311))
+        # Large, always-visible volume controls (below alarm/sleep row; ~296+ clears ~290 text baseline)
+        vol_minus_rect = pygame.draw.rect(screen, (35, 35, 35), (10, 298, 44, 34), border_radius=8)
+        pygame.draw.rect(screen, CYAN, (10, 298, 44, 34), 2, border_radius=8)
+        screen.blit(f_sm.render("-", True, WHITE), (27, 305))
 
-        vol_plus_rect = pygame.draw.rect(screen, (35, 35, 35), (270, 306, 40, 30), border_radius=8)
-        pygame.draw.rect(screen, CYAN, (270, 306, 40, 30), 2, border_radius=8)
-        screen.blit(f_sm.render("+", True, WHITE), (284, 311))
+        vol_plus_rect = pygame.draw.rect(screen, (35, 35, 35), (266, 298, 44, 34), border_radius=8)
+        pygame.draw.rect(screen, CYAN, (266, 298, 44, 34), 2, border_radius=8)
+        screen.blit(f_sm.render("+", True, WHITE), (283, 305))
 
-        vol_bar_rect = pygame.Rect(58, 309, 204, 24)
+        vol_bar_rect = pygame.Rect(58, 302, 204, 26)
         pygame.draw.rect(screen, (40, 40, 40), vol_bar_rect, border_radius=12)
         fill_width = int(vol_bar_rect.width * vol_level / 100)
         if fill_width > 0:
@@ -3393,20 +3391,21 @@ while True:
         knob_x = vol_bar_rect.x + int(vol_bar_rect.width * vol_level / 100)
         knob_x = max(vol_bar_rect.x + 8, min(vol_bar_rect.right - 8, knob_x))
         pygame.draw.circle(screen, WHITE, (knob_x, vol_bar_rect.centery), 8)
-        screen.blit(f_tiny.render(f"VOL {vol_level}%", True, WHITE), (133, 338))
+        vol_pct_surf = f_tiny.render(f"VOL {vol_level}%", True, WHITE)
+        screen.blit(vol_pct_surf, (160 - vol_pct_surf.get_width() // 2, 334))
         
-        # English UI buttons (NOT translated to Tamil)
-        btn_prev = pygame.draw.rect(screen, (30,30,30), (10,340,95,55), border_radius=15)
-        pygame.draw.rect(screen, CYAN, (10,340,95,55), 2, border_radius=15)
-        screen.blit(f_sm.render("PREV", True, WHITE), (35,357))
+        # English UI buttons (NOT translated to Tamil) — y lowered so volume strip + label clear
+        btn_prev = pygame.draw.rect(screen, (30,30,30), (10,352,95,55), border_radius=15)
+        pygame.draw.rect(screen, CYAN, (10,352,95,55), 2, border_radius=15)
+        screen.blit(f_sm.render("PREV", True, WHITE), (35,369))
         
-        btn_toggle = pygame.draw.rect(screen, (30,30,30), (112,340,95,55), border_radius=15)
-        pygame.draw.rect(screen, GOLD, (112,340,95,55), 2, border_radius=15)
-        screen.blit(f_sm.render("PAUSE" if is_playing else "PLAY", True, GOLD), (135,357))
+        btn_toggle = pygame.draw.rect(screen, (30,30,30), (112,352,95,55), border_radius=15)
+        pygame.draw.rect(screen, GOLD, (112,352,95,55), 2, border_radius=15)
+        screen.blit(f_sm.render("PAUSE" if is_playing else "PLAY", True, GOLD), (135,369))
         
-        btn_next = pygame.draw.rect(screen, (30,30,30), (215,340,95,55), border_radius=15)
-        pygame.draw.rect(screen, PURPLE, (215,340,95,55), 2, border_radius=15)
-        screen.blit(f_sm.render("NEXT", True, WHITE), (240,357))
+        btn_next = pygame.draw.rect(screen, (30,30,30), (215,352,95,55), border_radius=15)
+        pygame.draw.rect(screen, PURPLE, (215,352,95,55), 2, border_radius=15)
+        screen.blit(f_sm.render("NEXT", True, WHITE), (240,369))
         
         pygame.draw.rect(screen, (20,20,20), (0,430,320,50))
         btn_sleep = pygame.draw.rect(screen, PURPLE, (5, 435, 70, 40), border_radius=5)
@@ -3422,12 +3421,14 @@ while True:
         screen.blit(f_sm.render("M", True, CYAN if vol_level > 0 else RED), (288, 445))
         
         if show_volume_bar:
-            pygame.draw.rect(screen, (40,40,40), (40, 350, 240, 40), border_radius=20)
+            # Sit above bottom bar; avoid overlapping transport + new volume row
+            ov_y, ov_h = 408, 22
+            pygame.draw.rect(screen, (40,40,40), (40, ov_y, 240, ov_h), border_radius=16)
             fill_width = int(240 * vol_level / 100)
-            pygame.draw.rect(screen, CYAN, (40, 350, fill_width, 40), border_radius=20)
-            pygame.draw.rect(screen, WHITE, (40, 350, 240, 40), 3, border_radius=20)
-            v_txt = f_xl.render(f"{vol_level}%", True, WHITE)
-            screen.blit(v_txt, (160 - v_txt.get_width()//2, 355))
+            pygame.draw.rect(screen, CYAN, (40, ov_y, fill_width, ov_h), border_radius=16)
+            pygame.draw.rect(screen, WHITE, (40, ov_y, 240, ov_h), 2, border_radius=16)
+            v_txt = f_lg.render(f"{vol_level}%", True, WHITE)
+            screen.blit(v_txt, (160 - v_txt.get_width() // 2, ov_y + 4))
         
         if show_qr:
             pygame.draw.rect(screen, BLACK, (35,95,250,250), border_radius=10)
