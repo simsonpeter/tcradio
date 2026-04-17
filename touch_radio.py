@@ -3381,18 +3381,20 @@ while True:
         pygame.draw.rect(screen, CYAN, (266, 298, 44, 34), 2, border_radius=8)
         screen.blit(f_sm.render("+", True, WHITE), (283, 305))
 
+        # Slider + label only while adjusting or shortly after (+/- tap, bottom %, logo swipe)
         vol_bar_rect = pygame.Rect(58, 302, 204, 26)
-        pygame.draw.rect(screen, (40, 40, 40), vol_bar_rect, border_radius=12)
-        fill_width = int(vol_bar_rect.width * vol_level / 100)
-        if fill_width > 0:
-            pygame.draw.rect(screen, CYAN, (vol_bar_rect.x, vol_bar_rect.y, fill_width, vol_bar_rect.height), border_radius=12)
-        pygame.draw.rect(screen, WHITE, vol_bar_rect, 2, border_radius=12)
+        if show_volume_bar or adjusting_volume:
+            pygame.draw.rect(screen, (40, 40, 40), vol_bar_rect, border_radius=12)
+            fill_width = int(vol_bar_rect.width * vol_level / 100)
+            if fill_width > 0:
+                pygame.draw.rect(screen, CYAN, (vol_bar_rect.x, vol_bar_rect.y, fill_width, vol_bar_rect.height), border_radius=12)
+            pygame.draw.rect(screen, WHITE, vol_bar_rect, 2, border_radius=12)
 
-        knob_x = vol_bar_rect.x + int(vol_bar_rect.width * vol_level / 100)
-        knob_x = max(vol_bar_rect.x + 8, min(vol_bar_rect.right - 8, knob_x))
-        pygame.draw.circle(screen, WHITE, (knob_x, vol_bar_rect.centery), 8)
-        vol_pct_surf = f_tiny.render(f"VOL {vol_level}%", True, WHITE)
-        screen.blit(vol_pct_surf, (160 - vol_pct_surf.get_width() // 2, 334))
+            knob_x = vol_bar_rect.x + int(vol_bar_rect.width * vol_level / 100)
+            knob_x = max(vol_bar_rect.x + 8, min(vol_bar_rect.right - 8, knob_x))
+            pygame.draw.circle(screen, WHITE, (knob_x, vol_bar_rect.centery), 8)
+            vol_pct_surf = f_tiny.render(f"VOL {vol_level}%", True, WHITE)
+            screen.blit(vol_pct_surf, (160 - vol_pct_surf.get_width() // 2, 334))
         
         # English UI buttons (NOT translated to Tamil) — y lowered so volume strip + label clear
         btn_prev = pygame.draw.rect(screen, (30,30,30), (10,352,95,55), border_radius=15)
@@ -3419,16 +3421,6 @@ while True:
         screen.blit(f_sm.render(f"{vol_level}%", True, WHITE), (230, 445))
         btn_mute = pygame.draw.rect(screen, (30,30,30), (275, 435, 40, 40), border_radius=5)
         screen.blit(f_sm.render("M", True, CYAN if vol_level > 0 else RED), (288, 445))
-        
-        if show_volume_bar:
-            # Sit above bottom bar; avoid overlapping transport + new volume row
-            ov_y, ov_h = 408, 22
-            pygame.draw.rect(screen, (40,40,40), (40, ov_y, 240, ov_h), border_radius=16)
-            fill_width = int(240 * vol_level / 100)
-            pygame.draw.rect(screen, CYAN, (40, ov_y, fill_width, ov_h), border_radius=16)
-            pygame.draw.rect(screen, WHITE, (40, ov_y, 240, ov_h), 2, border_radius=16)
-            v_txt = f_lg.render(f"{vol_level}%", True, WHITE)
-            screen.blit(v_txt, (160 - v_txt.get_width() // 2, ov_y + 4))
         
         if show_qr:
             pygame.draw.rect(screen, BLACK, (35,95,250,250), border_radius=10)
