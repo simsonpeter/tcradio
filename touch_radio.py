@@ -629,6 +629,8 @@ HTML_TEMPLATE = """
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3011/3011244.png">
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700&display=swap');
+
         :root {
             --bg: {{ theme.background }};
             --primary: {{ theme.primary }};
@@ -649,7 +651,7 @@ HTML_TEMPLATE = """
             padding: 0;
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Noto Sans Tamil', 'Nirmala UI', 'Latha', 'Vijaya', 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
         
         html, body {
@@ -2998,16 +3000,18 @@ pygame.init()
 def get_unicode_font(size, bold=False):
     """Load font with Unicode/Tamil support"""
     font_paths = [
-        '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
-        '/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf',
         '/usr/share/fonts/truetype/noto/NotoSansTamil-Regular.ttf',
-        '/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc',
-        '/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf',
         '/usr/share/fonts/truetype/noto/NotoSansTamil-Bold.ttf',
+        '/usr/share/fonts/truetype/lohit-tamil/Lohit-Tamil.ttf',
+        '/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf',
+        '/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf',
+        '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
+        '/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc',
         '/usr/share/fonts/truetype/freefont/FreeSans.ttf',
         '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf',
         '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
         '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+        '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
     ]
     
     if bold:
